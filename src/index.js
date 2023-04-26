@@ -2,7 +2,12 @@ import axios from 'axios';
 import { Notify } from 'notiflix';
 const KEY_PIXABAY = `35768020-57bf980d1d69223dcc2d256cc`;
 
-const url = `https://pixabay.com/api/?key=${KEY_PIXABAY}&image_type=photo&orientation=horizontal&safesearch=true&q=`;
+const search = {
+  value: null,
+  page: null,
+  per_page: 40,
+  visibleBtn: false,
+};
 
 const searchForm = document.querySelector('.search-form');
 searchForm.addEventListener('input', handleSearch);
@@ -12,13 +17,18 @@ searchBtn.addEventListener('click', handleBtn);
 
 const gallereyInfo = document.querySelector('.gallery');
 
-const search = {
-  value: null,
-};
+const loadMore = document.querySelector('.load-more');
+loadMore.addEventListener('click', handleBtn);
 
 const data = {
   data: null,
 };
+
+function visible_loadMore() {
+  loadMore.style.display = !search.page ? 'none' : 'block';
+}
+visible_loadMore();
+
 function drawCard(card) {
   return `
   <div class="photo-card">
@@ -44,6 +54,7 @@ function drawCard(card) {
 
 function handleSearch(e) {
   search.value = e.target.value;
+  search.page = 0;
 }
 
 function drawGallery(cards) {
@@ -55,18 +66,30 @@ function drawGallery(cards) {
 }
 
 function receiveData({ data }) {
+  if (data.totalHits < search.page * search.per_page) {
+    search.page = 0;
+    visible_loadMore();
+    Notify.failure(
+      "We're sorry, but you've reached the end of search results."
+    );
+    return;
+  }
+
   const gallerey = data.hits;
 
   if (gallerey.length > 0) {
     const marcup = drawGallery(gallerey);
     if (marcup) {
-      gallereyInfo.innerHTML = marcup;
+      gallereyInfo.insertAdjacentHTML('beforeend', marcup);
     }
+    Notify.success(`Hooray! We found ${search.page * search.per_page} images.`);
     return;
   }
   Notify.failure(
     'Sorry, there are no images matching your search query. Please try again.'
   );
+  search.page = 0;
+  visible_loadMore();
 }
 
 function errorGallery() {
@@ -75,6 +98,12 @@ function errorGallery() {
 
 function handleBtn(e) {
   e.preventDefault();
+
+  if (!search.page) {
+    gallereyInfo.innerHTML = '';
+    visible_loadMore();
+  }
+
   try {
     getPixabay().then(receiveData).catch(errorGallery);
   } catch (error) {
@@ -83,6 +112,9 @@ function handleBtn(e) {
 }
 
 async function getPixabay() {
-  const res = await axios.get(url + search.value);
+  search.page += 1;
+  const url = `https://pixabay.com/api/?key=${KEY_PIXABAY}&image_type=photo&orientation=horizontal&safesearch=true&q=${search.value}&page=${search.page}&per_page=${search.per_page}`;
+  const res = await axios.get(url);
+  visible_loadMore();
   return res;
 }
