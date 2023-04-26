@@ -25,7 +25,7 @@ const data = {
 };
 
 function visible_loadMore() {
-  loadMore.style.display = !search.page ? 'none' : 'block';
+  loadMore.style.display = !search.visibleBtn ? 'none' : 'block';
 }
 visible_loadMore();
 
@@ -68,6 +68,7 @@ function drawGallery(cards) {
 function receiveData({ data }) {
   if (data.totalHits < search.page * search.per_page) {
     search.page = 0;
+    search.visibleBtn = false;
     visible_loadMore();
     Notify.failure(
       "We're sorry, but you've reached the end of search results."
@@ -83,12 +84,15 @@ function receiveData({ data }) {
       gallereyInfo.insertAdjacentHTML('beforeend', marcup);
     }
     Notify.success(`Hooray! We found ${search.page * search.per_page} images.`);
+    search.visibleBtn = true;
+    visible_loadMore();
     return;
   }
   Notify.failure(
     'Sorry, there are no images matching your search query. Please try again.'
   );
   search.page = 0;
+  search.visibleBtn = false;
   visible_loadMore();
 }
 
@@ -98,10 +102,15 @@ function errorGallery() {
 
 function handleBtn(e) {
   e.preventDefault();
+  if (!search.value) {
+    Notify.failure('Виберіть критерій поіску !!!.');
+    return;
+  }
 
+  search.visibleBtn = false;
+  visible_loadMore();
   if (!search.page) {
     gallereyInfo.innerHTML = '';
-    visible_loadMore();
   }
 
   try {
@@ -115,6 +124,7 @@ async function getPixabay() {
   search.page += 1;
   const url = `https://pixabay.com/api/?key=${KEY_PIXABAY}&image_type=photo&orientation=horizontal&safesearch=true&q=${search.value}&page=${search.page}&per_page=${search.per_page}`;
   const res = await axios.get(url);
-  visible_loadMore();
+  // search.visibleBtn = true;
+  // visible_loadMore();
   return res;
 }
