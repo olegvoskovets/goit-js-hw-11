@@ -6,7 +6,9 @@ import drawCard from './templates/drawCard.js';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 
-const KEY_PIXABAY = `35768020-57bf980d1d69223dcc2d256cc`;
+import { search } from './templates/stateSearch.js';
+
+import Url from './api/url.js';
 
 const searchForm = document.querySelector('.search-form');
 searchForm.addEventListener('input', handleSearch);
@@ -20,17 +22,12 @@ gallereyInfo.addEventListener('click', onPalettContainerClick);
 const loadMore = document.querySelector('.load-more');
 loadMore.addEventListener('click', handleBtn);
 
+window.addEventListener('scroll', scrollGallerey);
+
 let galleryImage = new SimpleLightbox('.gallery a');
 galleryImage.on('show.simplelightbox', {
   captionDelay: '250',
 });
-
-const search = {
-  value: null,
-  page: null,
-  per_page: 40,
-  visibleBtn: false,
-};
 
 function visible_loadMore() {
   loadMore.style.display = !search.visibleBtn ? 'none' : 'block';
@@ -52,12 +49,14 @@ function drawGallery(cards) {
 
 function receiveData({ data }) {
   if (data.totalHits < search.page * search.per_page) {
+    search.canBeScrolled = false; //забороняємо робити запити при скролі
     search.page = 0;
     search.visibleBtn = false;
     visible_loadMore();
     Notify.failure(
       "We're sorry, but you've reached the end of search results."
     );
+
     return;
   }
 
@@ -75,18 +74,18 @@ function receiveData({ data }) {
     search.visibleBtn = true;
     visible_loadMore();
 
-    const { height: cardHeight, width: cardWidth } = document
-      .querySelector('.gallery')
-      .firstElementChild.getBoundingClientRect();
-    console.log({
-      height: cardHeight,
-      width: cardWidth,
-    });
+    // const { height: cardHeight, width: cardWidth } = document
+    //   .querySelector('.gallery')
+    //   .firstElementChild.getBoundingClientRect();
+    // console.log({
+    //   height: cardHeight,
+    //   width: cardWidth,
+    // });
 
-    window.scrollBy({
-      top: cardHeight * 14,
-      behavior: 'smooth',
-    });
+    // window.scrollBy({
+    //   top: cardHeight * 4,
+    //   behavior: 'smooth',
+    // });
 
     return;
   }
@@ -104,8 +103,17 @@ function errorGallery({ res }) {
   Notify.failure('Sorry, что-то пошло не так !!!.');
 }
 
+function validUrl() {
+  search.page += 1;
+  return Url();
+}
+
 function handleBtn(e) {
-  e.preventDefault();
+  if (e) {
+    e.preventDefault();
+    search.canBeScrolled = true;
+  }
+
   search.visibleBtn = false;
   visible_loadMore();
 
@@ -119,9 +127,12 @@ function handleBtn(e) {
   }
 
   try {
-    search.page += 1;
-    const url = `https://pixabay.com/api/?key=${KEY_PIXABAY}&image_type=photo&orientation=horizontal&safesearch=true&q=${search.value}&page=${search.page}&per_page=${search.per_page}`;
-    API(url).then(receiveData).catch(errorGallery);
+    API(validUrl())
+      .then(receiveData)
+      .catch(errorGallery)
+      .finally(() => {
+        search.loaded = true;
+      });
   } catch (error) {
     console.log(error);
   }
@@ -138,4 +149,18 @@ function onPalettContainerClick(e) {
       galleryImage.close();
     }
   });
+}
+
+//щоб подивитись як працює кнопка загрузок треба закоментувати виконання функції scrollGallerey()
+
+function scrollGallerey() {
+  const documentRect = document.documentElement.getBoundingClientRect();
+  if (documentRect.bottom < document.documentElement.clientHeight + 450) {
+    if (search.canBeScrolled) {
+      if (search.loaded) {
+        handleBtn();
+        search.loaded = false;
+      }
+    }
+  }
 }
