@@ -30,11 +30,17 @@ galleryImage.on('show.simplelightbox', {
 });
 
 function visible_loadMore() {
+  if (!search.canBeScrolled) {
+    loadMore.style.display = 'none';
+    searchBtn.disabled = true;
+    return;
+  }
   loadMore.style.display = !search.visibleBtn ? 'none' : 'block';
 }
 visible_loadMore();
 
 function handleSearch(e) {
+  searchBtn.disabled = false;
   search.value = e.target.value;
   search.page = 0;
 }
@@ -48,44 +54,61 @@ function drawGallery(cards) {
 }
 
 function receiveData({ data }) {
-  if (data.totalHits < search.page * search.per_page) {
-    search.canBeScrolled = false; //забороняємо робити запити при скролі
-    search.page = 0;
-    search.visibleBtn = false;
-    visible_loadMore();
-    Notify.failure(
-      "We're sorry, but you've reached the end of search results."
-    );
-
-    return;
-  }
-
+  console.log(search);
   const gallerey = data.hits;
 
   if (gallerey.length > 0) {
+    if (data.totalHits < search.page * search.per_page) {
+      //забороняємо робити запити при скролі
+      search.canBeScrolled = false;
+      search.visibleBtn = false;
+      visible_loadMore();
+      //якщо у нас получений массив меньший за per_page ми забороняємо скролл
+      if (data.totalHits <= search.per_page) {
+        setTimeout(() => {
+          Notify.failure(
+            "We're sorry, but you've reached the end of search results."
+          );
+        }, 2000);
+        //search.page = 0;
+      }
+      if (search.page !== 1) {
+        // search.canBeScrolled = false; //забороняємо робити запити при скролі
+        search.page = 0;
+        // search.visibleBtn = false;
+        // visible_loadMore();
+        Notify.failure(
+          "We're sorry, but you've reached the end of search results."
+        );
+
+        return;
+      }
+    }
     const marcup = drawGallery(gallerey);
 
     if (marcup) {
       gallereyInfo.insertAdjacentHTML('beforeend', marcup);
       galleryImage.refresh();
     }
+    if (search.page === 1) {
+      Notify.success(`Hooray! We found ${data.totalHits} images.`);
+    }
 
-    Notify.success(`Hooray! We found ${search.page * search.per_page} images.`);
-    search.visibleBtn = true;
-    visible_loadMore();
+    // search.visibleBtn = true;
+    // visible_loadMore();
 
-    // const { height: cardHeight, width: cardWidth } = document
-    //   .querySelector('.gallery')
-    //   .firstElementChild.getBoundingClientRect();
-    // console.log({
-    //   height: cardHeight,
-    //   width: cardWidth,
-    // });
+    const { height: cardHeight, width: cardWidth } = document
+      .querySelector('.gallery')
+      .firstElementChild.getBoundingClientRect();
+    console.log({
+      height: cardHeight,
+      width: cardWidth,
+    });
 
-    // window.scrollBy({
-    //   top: cardHeight * 4,
-    //   behavior: 'smooth',
-    // });
+    window.scrollBy({
+      top: cardHeight,
+      behavior: 'smooth',
+    });
 
     return;
   }
@@ -109,6 +132,7 @@ function validUrl() {
 }
 
 function handleBtn(e) {
+  searchBtn.disabled = true;
   if (e) {
     e.preventDefault();
     search.canBeScrolled = true;
@@ -151,14 +175,17 @@ function onPalettContainerClick(e) {
   });
 }
 
-//щоб подивитись як працює кнопка загрузок треба закоментувати виконання функції scrollGallerey()
+//щоб подивитись як працює кнопка загрузок треба розкоментувати виконання функції handleBtn()
 
 function scrollGallerey() {
   const documentRect = document.documentElement.getBoundingClientRect();
-  if (documentRect.bottom < document.documentElement.clientHeight + 450) {
+  if (documentRect.bottom < document.documentElement.clientHeight + 5) {
     if (search.canBeScrolled) {
       if (search.loaded) {
-        handleBtn();
+        search.visibleBtn = true;
+        searchBtn.disabled = false;
+        visible_loadMore();
+        // handleBtn();
         search.loaded = false;
       }
     }
