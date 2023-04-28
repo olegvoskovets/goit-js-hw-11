@@ -3,6 +3,6 @@ export const search = {
   page: null,
   per_page: 40,
   visibleBtn: false,
-  loaded: true,
+  loaded: false,
   canBeScrolled: true,
 };

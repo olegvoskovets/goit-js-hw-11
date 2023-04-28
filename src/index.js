@@ -22,7 +22,7 @@ gallereyInfo.addEventListener('click', onPalettContainerClick);
 const loadMore = document.querySelector('.load-more');
 loadMore.addEventListener('click', handleBtn);
 
-window.addEventListener('scroll', scrollGallerey);
+document.addEventListener('scroll', scrollGallerey);
 
 let galleryImage = new SimpleLightbox('.gallery a');
 galleryImage.on('show.simplelightbox', {
@@ -32,7 +32,7 @@ galleryImage.on('show.simplelightbox', {
 function visible_loadMore() {
   if (!search.canBeScrolled) {
     loadMore.style.display = 'none';
-    searchBtn.disabled = true;
+
     return;
   }
   loadMore.style.display = !search.visibleBtn ? 'none' : 'block';
@@ -41,8 +41,12 @@ visible_loadMore();
 
 function handleSearch(e) {
   searchBtn.disabled = false;
+  search.visibleBtn = false;
+
   search.value = e.target.value;
   search.page = 0;
+
+  visible_loadMore();
 }
 
 function drawGallery(cards) {
@@ -54,7 +58,9 @@ function drawGallery(cards) {
 }
 
 function receiveData({ data }) {
-  console.log(search);
+  search.visibleBtn = false;
+  visible_loadMore();
+
   const gallerey = data.hits;
 
   if (gallerey.length > 0) {
@@ -62,21 +68,23 @@ function receiveData({ data }) {
       //забороняємо робити запити при скролі
       search.canBeScrolled = false;
       search.visibleBtn = false;
+
       visible_loadMore();
-      //якщо у нас получений массив меньший за per_page ми забороняємо скролл
+
+      //якщо у нас получений массив меньший за per_page ми
       if (data.totalHits <= search.per_page) {
         setTimeout(() => {
           Notify.failure(
             "We're sorry, but you've reached the end of search results."
           );
-        }, 2000);
-        //search.page = 0;
+          searchBtn.disabled = true;
+        }, 2500);
       }
       if (search.page !== 1) {
         // search.canBeScrolled = false; //забороняємо робити запити при скролі
         search.page = 0;
-        // search.visibleBtn = false;
-        // visible_loadMore();
+
+        searchBtn.disabled = true;
         Notify.failure(
           "We're sorry, but you've reached the end of search results."
         );
@@ -93,22 +101,9 @@ function receiveData({ data }) {
     if (search.page === 1) {
       Notify.success(`Hooray! We found ${data.totalHits} images.`);
     }
-
-    // search.visibleBtn = true;
-    // visible_loadMore();
-
-    const { height: cardHeight, width: cardWidth } = document
-      .querySelector('.gallery')
-      .firstElementChild.getBoundingClientRect();
-    console.log({
-      height: cardHeight,
-      width: cardWidth,
-    });
-
-    window.scrollBy({
-      top: cardHeight,
-      behavior: 'smooth',
-    });
+    searchBtn.disabled = false;
+    search.visibleBtn = true;
+    visible_loadMore();
 
     return;
   }
@@ -133,15 +128,16 @@ function validUrl() {
 
 function handleBtn(e) {
   searchBtn.disabled = true;
+  search.visibleBtn = false;
+  search.loaded = true;
+  visible_loadMore();
+  search.canBeScrolled = true;
   if (e) {
     e.preventDefault();
-    search.canBeScrolled = true;
   }
 
-  search.visibleBtn = false;
-  visible_loadMore();
-
   if (!search.value) {
+    removeInnerHtml();
     Notify.failure('Виберіть критерій пошуку !!!.');
     return;
   }
@@ -155,11 +151,14 @@ function handleBtn(e) {
       .then(receiveData)
       .catch(errorGallery)
       .finally(() => {
-        search.loaded = true;
+        search.loaded = false;
       });
   } catch (error) {
     console.log(error);
   }
+}
+function removeInnerHtml() {
+  gallereyInfo.innerHTML = '';
 }
 
 function onPalettContainerClick(e) {
@@ -175,18 +174,20 @@ function onPalettContainerClick(e) {
   });
 }
 
-//щоб подивитись як працює кнопка загрузок треба розкоментувати виконання функції handleBtn()
+//щоб подивитись як працює Scrolled треба розкоментувати виконання функції handleBtn() у функції  scrollGallerey()
 
 function scrollGallerey() {
   const documentRect = document.documentElement.getBoundingClientRect();
-  if (documentRect.bottom < document.documentElement.clientHeight + 5) {
+  if (documentRect.bottom < document.documentElement.clientHeight + 150) {
     if (search.canBeScrolled) {
-      if (search.loaded) {
-        search.visibleBtn = true;
+      if (!search.loaded) {
         searchBtn.disabled = false;
         visible_loadMore();
-        // handleBtn();
-        search.loaded = false;
+        // щоб вимкнути skroll треба закоментувати цей handleBtn()
+        //=======================================
+        handleBtn();
+        //========================================
+        search.loaded = true;
       }
     }
   }
